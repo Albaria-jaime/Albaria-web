@@ -1,12 +1,53 @@
 import React, { useEffect, useState, useRef, FormEvent, useCallback } from "react";
 import {
   Menu, X, ArrowRight, Zap, Target, Lock, TrendingUp, CheckCircle,
-  Clock, ExternalLink, AlertTriangle, Search, Shield, FileCheck, ChevronRight
+  Clock, ExternalLink, AlertTriangle, Search, Shield, FileCheck, ChevronRight, Copy, Check
 } from "lucide-react";
 import { Link } from "wouter";
 import albariLogoPath from "../assets/albaria-logo-clean.png";
 
 const DEMO_DURATION = 3 * 60 * 1000;
+const DEMO_USER = "tryout";
+const DEMO_PASS = "tryout123";
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => { void navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1800); }}
+      className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-white transition-colors shrink-0"
+      title="Copiar"
+    >
+      {copied ? <Check size={13} className="text-green-400" /> : <Copy size={13} />}
+    </button>
+  );
+}
+
+function CredentialsCard({ expired = false }: { expired?: boolean }) {
+  return (
+    <div className={`rounded-xl border p-4 transition-all ${expired ? "border-red-500/20 bg-red-500/5 opacity-50 select-none pointer-events-none" : "border-[#2a2a3a] bg-[#111118]"}`}>
+      <p className="text-[11px] uppercase tracking-[2px] text-muted-foreground font-semibold mb-3">
+        {expired ? "Credenciales caducadas" : "Credenciales de acceso"}
+      </p>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-3 bg-[#0A0A0F] rounded-lg px-3 py-2 border border-[#1e1e2e]">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] text-muted-foreground w-16 shrink-0">Usuario</span>
+            <span className="text-sm font-mono text-white truncate">{expired ? "••••••" : DEMO_USER}</span>
+          </div>
+          {!expired && <CopyButton text={DEMO_USER} />}
+        </div>
+        <div className="flex items-center justify-between gap-3 bg-[#0A0A0F] rounded-lg px-3 py-2 border border-[#1e1e2e]">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[11px] text-muted-foreground w-16 shrink-0">Contraseña</span>
+            <span className="text-sm font-mono text-white truncate">{expired ? "••••••••••" : DEMO_PASS}</span>
+          </div>
+          {!expired && <CopyButton text={DEMO_PASS} />}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function useFadeIn() {
   const ref = useRef<HTMLDivElement>(null);
@@ -73,6 +114,7 @@ function DemoModal({ demo, timeLeft, totalDuration, token, onClose, onExpired, o
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[#0A0A0F]">
+      {/* Header */}
       <div className="flex items-center justify-between px-5 h-14 border-b border-[#1e1e2e] shrink-0 bg-[#0A0A0F]">
         <div className="flex items-center gap-3">
           <AlbariaLogo className="h-7" />
@@ -111,52 +153,71 @@ function DemoModal({ demo, timeLeft, totalDuration, token, onClose, onExpired, o
           </button>
         </div>
       </div>
-      <div className="relative flex-1 bg-[#0d0d14] overflow-hidden">
-        {!iframeLoaded && !iframeBlocked && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10">
-            <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-            <p className="text-sm text-muted-foreground">Cargando la demo…</p>
-          </div>
-        )}
-        {iframeBlocked && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-10 px-6 text-center">
-            <div className="w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
-              <AlertTriangle size={24} className="text-orange-400" />
+
+      {/* Body: iframe + credentials sidebar */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Iframe area */}
+        <div className="relative flex-1 bg-[#0d0d14] overflow-hidden">
+          {!iframeLoaded && !iframeBlocked && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10">
+              <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <p className="text-sm text-muted-foreground">Cargando la demo…</p>
             </div>
-            <div>
-              <h3 className="text-xl font-semibold mb-2">La demo no está disponible en este momento</h3>
-              <p className="text-muted-foreground max-w-sm">Reserva una reunión y te la mostramos en directo con datos reales de tu sector.</p>
-            </div>
-            <button onClick={onContactClick}
-              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all">
-              Reservar reunión gratuita <ArrowRight size={16} />
-            </button>
-          </div>
-        )}
-        {!iframeBlocked && (
-          <iframe src={demo.url} title={demo.title}
-            className={`w-full h-full border-0 transition-opacity duration-500 ${iframeLoaded ? "opacity-100" : "opacity-0"}`}
-            onLoad={handleIframeLoad}
-            allow="camera; microphone; fullscreen"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
-          />
-        )}
-        {expired && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0A0A0F]/90 backdrop-blur-sm">
-            <div className="bg-[#111118] border border-[#1e1e2e] rounded-2xl p-10 max-w-md w-full text-center mx-4 shadow-2xl">
-              <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-6">
-                <Clock size={24} className="text-primary" />
+          )}
+          {iframeBlocked && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-10 px-6 text-center">
+              <div className="w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
+                <AlertTriangle size={24} className="text-orange-400" />
               </div>
-              <h3 className="text-2xl font-semibold mb-3">Tu prueba ha terminado</h3>
-              <p className="text-muted-foreground mb-8">¿Ves el potencial? Esto es solo una muestra. Con acceso completo, lo configuramos para los datos y procesos de tu empresa.</p>
+              <div>
+                <h3 className="text-xl font-semibold mb-2">La demo no está disponible en este momento</h3>
+                <p className="text-muted-foreground max-w-sm">Reserva una reunión y te la mostramos en directo con datos reales de tu sector.</p>
+              </div>
               <button onClick={onContactClick}
-                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all mb-3">
+                className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all">
                 Reservar reunión gratuita <ArrowRight size={16} />
               </button>
-              <button onClick={onClose} className="text-sm text-muted-foreground hover:text-white transition-colors">Cerrar</button>
             </div>
+          )}
+          {!iframeBlocked && (
+            <iframe src={demo.url} title={demo.title}
+              className={`w-full h-full border-0 transition-opacity duration-500 ${iframeLoaded ? "opacity-100" : "opacity-0"}`}
+              onLoad={handleIframeLoad}
+              allow="camera; microphone; fullscreen"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+            />
+          )}
+          {expired && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0A0A0F]/90 backdrop-blur-sm">
+              <div className="bg-[#111118] border border-[#1e1e2e] rounded-2xl p-10 max-w-md w-full text-center mx-4 shadow-2xl">
+                <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-6">
+                  <Clock size={24} className="text-primary" />
+                </div>
+                <h3 className="text-2xl font-semibold mb-3">Tu prueba ha terminado</h3>
+                <p className="text-muted-foreground mb-8">¿Ves el potencial? Esto es solo una muestra. Con acceso completo, lo configuramos para los datos y procesos de tu empresa.</p>
+                <button onClick={onContactClick}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all mb-3">
+                  Reservar reunión gratuita <ArrowRight size={16} />
+                </button>
+                <button onClick={onClose} className="text-sm text-muted-foreground hover:text-white transition-colors">Cerrar</button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Credentials sidebar */}
+        <div className="w-64 shrink-0 border-l border-[#1e1e2e] bg-[#0A0A0F] flex flex-col p-5 gap-5 hidden md:flex">
+          <div>
+            <p className="text-[11px] uppercase tracking-[2px] text-muted-foreground font-semibold mb-1">Sesión activa</p>
+            <p className="text-xs text-muted-foreground">Usa estas credenciales para acceder a la aplicación</p>
           </div>
-        )}
+          <CredentialsCard expired={expired} />
+          <div className="mt-auto pt-4 border-t border-[#1e1e2e]">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Al expirar el tiempo las credenciales se desactivan y no podrás volver a iniciar sesión.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -601,14 +662,15 @@ export default function Home() {
       {/* CREATING SESSION OVERLAY */}
       {creatingSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A0A0F]">
-          <div className="text-center px-6">
+          <div className="w-full max-w-sm px-6 text-center">
             <div className="relative w-16 h-16 mx-auto mb-8">
               <div className="w-16 h-16 border-2 border-primary/20 border-t-primary rounded-full animate-spin absolute inset-0" />
               <div className="w-16 h-16 border-2 border-primary/10 border-b-primary/40 rounded-full animate-spin absolute inset-0" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
             </div>
             <AlbariaLogo className="h-8 mx-auto mb-6 opacity-60" />
             <h3 className="text-lg font-semibold text-white mb-2">Generando tu cuenta de prueba</h3>
-            <p className="text-sm text-muted-foreground">Tu sesión tendrá una duración de 3 minutos</p>
+            <p className="text-sm text-muted-foreground mb-8">Tu sesión tendrá una duración de 3 minutos</p>
+            <CredentialsCard />
           </div>
         </div>
       )}

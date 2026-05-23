@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, FormEvent, useCallback } from "react";
-import { Menu, X, ArrowRight, Zap, Target, Lock, TrendingUp, CheckCircle, Clock, ExternalLink } from "lucide-react";
+import { Menu, X, ArrowRight, Zap, Target, Lock, TrendingUp, CheckCircle, Clock, ExternalLink, AlertTriangle } from "lucide-react";
 import { Link } from "wouter";
 import albariLogoPath from "../assets/albaria-logo-clean.png";
 
@@ -41,15 +41,181 @@ function formatTime(ms: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+interface DemoSession {
+  url: string;
+  title: string;
+  key: string;
+}
+
+function DemoModal({
+  demo,
+  timeLeft,
+  totalDuration,
+  onClose,
+  onExpired,
+  onContactClick,
+}: {
+  demo: DemoSession;
+  timeLeft: number;
+  totalDuration: number;
+  onClose: () => void;
+  onExpired: () => void;
+  onContactClick: () => void;
+}) {
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [iframeBlocked, setIframeBlocked] = useState(false);
+  const expired = timeLeft <= 0;
+  const radius = 16;
+  const circ = 2 * Math.PI * radius;
+  const progress = circ * (1 - timeLeft / totalDuration);
+  const urgent = timeLeft < 30000 && timeLeft > 0;
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+
+  useEffect(() => {
+    if (expired) onExpired();
+  }, [expired, onExpired]);
+
+  // Detect blocked iframes via a load timeout
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleIframeLoad = () => {
+    if (loadTimerRef.current) clearTimeout(loadTimerRef.current);
+    setIframeLoaded(true);
+  };
+
+  useEffect(() => {
+    loadTimerRef.current = setTimeout(() => {
+      if (!iframeLoaded) setIframeBlocked(true);
+    }, 8000);
+    return () => { if (loadTimerRef.current) clearTimeout(loadTimerRef.current); };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#0A0A0F]">
+      {/* Modal header */}
+      <div className="flex items-center justify-between px-5 h-14 border-b border-[#1e1e2e] shrink-0 bg-[#0A0A0F]">
+        <div className="flex items-center gap-3">
+          <AlbariaLogo className="h-7" />
+          <span className="text-muted-foreground text-sm hidden sm:block">·</span>
+          <span className="text-sm font-medium text-foreground hidden sm:block">{demo.title}</span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* Countdown */}
+          <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-colors ${
+            expired ? "border-red-500/40 bg-red-500/10" :
+            urgent ? "border-orange-500/40 bg-orange-500/10 animate-pulse" :
+            "border-[#1e1e2e] bg-[#111118]"
+          }`}>
+            <svg viewBox="0 0 36 36" width="28" height="28" className="-rotate-90">
+              <circle cx="18" cy="18" r={radius} fill="none" stroke="#1e1e2e" strokeWidth="2.5" />
+              <circle cx="18" cy="18" r={radius} fill="none"
+                stroke={expired ? "#ef4444" : urgent ? "#f97316" : "#6366F1"}
+                strokeWidth="2.5"
+                strokeDasharray={circ}
+                strokeDashoffset={progress}
+                strokeLinecap="round"
+                style={{ transition: "stroke-dashoffset 0.5s linear, stroke 0.3s ease" }}
+              />
+            </svg>
+            <div>
+              <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Acceso gratuito</p>
+              <p className={`text-sm font-mono font-bold leading-none ${
+                expired ? "text-red-400" : urgent ? "text-orange-400" : "text-white"
+              }`}>{expired ? "0:00" : formatTime(timeLeft)}</p>
+            </div>
+          </div>
+
+          <a href={demo.url} target="_blank" rel="noopener noreferrer"
+            className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors">
+            <ExternalLink size={13} /> Abrir en pestaña
+          </a>
+
+          <button onClick={onClose} data-testid="button-demo-close"
+            className="w-8 h-8 rounded-md hover:bg-white/5 flex items-center justify-center text-muted-foreground hover:text-white transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Iframe area */}
+      <div className="relative flex-1 bg-[#0d0d14] overflow-hidden">
+        {/* Loading spinner */}
+        {!iframeLoaded && !iframeBlocked && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 z-10">
+            <div className="w-10 h-10 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Cargando la demo…</p>
+          </div>
+        )}
+
+        {/* Blocked fallback */}
+        {iframeBlocked && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 z-10 px-6 text-center">
+            <div className="w-14 h-14 rounded-full bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
+              <AlertTriangle size={24} className="text-orange-400" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold mb-2">La demo no puede abrirse aquí</h3>
+              <p className="text-muted-foreground max-w-sm">Esta aplicación no permite mostrarse dentro de otra web. Ábrela en una nueva pestaña para probarla.</p>
+            </div>
+            <a href={demo.url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all">
+              Abrir la demo <ExternalLink size={16} />
+            </a>
+            <p className="text-xs text-muted-foreground">Tu acceso gratuito de {formatTime(DEMO_DURATION)} sigue activo</p>
+          </div>
+        )}
+
+        {/* The iframe */}
+        {!iframeBlocked && (
+          <iframe
+            src={demo.url}
+            title={demo.title}
+            className={`w-full h-full border-0 transition-opacity duration-500 ${iframeLoaded ? "opacity-100" : "opacity-0"}`}
+            onLoad={handleIframeLoad}
+            allow="camera; microphone; fullscreen"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads"
+          />
+        )}
+
+        {/* Expired overlay */}
+        {expired && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-[#0A0A0F]/90 backdrop-blur-sm">
+            <div className="bg-[#111118] border border-[#1e1e2e] rounded-2xl p-10 max-w-md w-full text-center mx-4 shadow-2xl">
+              <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-6">
+                <Clock size={24} className="text-primary" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">Tu prueba ha terminado</h3>
+              <p className="text-muted-foreground mb-8">
+                ¿Ves el potencial? Esto es solo una muestra. Con acceso completo, lo configuramos para los datos y procesos de tu empresa.
+              </p>
+              <button
+                onClick={onContactClick}
+                className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all mb-3">
+                Reservar reunión gratuita <ArrowRight size={16} />
+              </button>
+              <button onClick={onClose} className="text-sm text-muted-foreground hover:text-white transition-colors">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [formData, setFormData] = useState({ nombre: "", empresa: "", mensaje: "" });
   const [formSent, setFormSent] = useState(false);
+  const [activeDemo, setActiveDemo] = useState<DemoSession | null>(null);
   const [demoSessionStart, setDemoSessionStart] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
-  const [showExpiredModal, setShowExpiredModal] = useState(false);
-  const [pendingDemoUrl, setPendingDemoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -72,9 +238,6 @@ export default function Home() {
       const remaining = DEMO_DURATION - elapsed;
       if (remaining <= 0) {
         setTimeLeft(0);
-        setDemoSessionStart(null);
-        localStorage.removeItem(STORAGE_KEY);
-        setShowExpiredModal(true);
         clearInterval(interval);
       } else {
         setTimeLeft(remaining);
@@ -93,33 +256,37 @@ export default function Home() {
     fetch("/api/analytics/visit", { method: "POST" }).catch(() => {});
   }, []);
 
-  const handleDemoClick = useCallback((url: string, key: string) => {
+  const openDemo = useCallback((demo: DemoSession) => {
     fetch("/api/analytics/demo-click", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ demo: key }),
+      body: JSON.stringify({ demo: demo.key }),
     }).catch(() => {});
 
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const start = parseInt(stored, 10);
-      const elapsed = Date.now() - start;
-      if (elapsed >= DEMO_DURATION) {
-        localStorage.removeItem(STORAGE_KEY);
-        setDemoSessionStart(null);
-        setShowExpiredModal(true);
-        setPendingDemoUrl(null);
-        return;
-      }
-      window.open(url, "_blank", "noopener,noreferrer");
-      return;
+    if (!demoSessionStart) {
+      const now = Date.now();
+      localStorage.setItem(STORAGE_KEY, String(now));
+      setDemoSessionStart(now);
+      setTimeLeft(DEMO_DURATION);
     }
 
-    const now = Date.now();
-    localStorage.setItem(STORAGE_KEY, String(now));
-    setDemoSessionStart(now);
-    setTimeLeft(DEMO_DURATION);
-    window.open(url, "_blank", "noopener,noreferrer");
+    setActiveDemo(demo);
+  }, [demoSessionStart]);
+
+  const closeDemo = useCallback(() => {
+    setActiveDemo(null);
+  }, []);
+
+  const handleDemoExpired = useCallback(() => {
+    setDemoSessionStart(null);
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
+  const handleContactFromDemo = useCallback(() => {
+    setActiveDemo(null);
+    setTimeout(() => {
+      document.getElementById("reservar")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   }, []);
 
   function handleFormSubmit(e: FormEvent) {
@@ -130,7 +297,7 @@ export default function Home() {
     setFormSent(true);
   }
 
-  const tools = [
+  const tools: (DemoSession & { icon: string; desc: string; badge: string; delay: number })[] = [
     { icon: "🎯", title: "Lead Generator Engine", desc: "Identifica nuevas oportunidades de negocio de forma autónoma. Análisis profundo de mercado y estrategia de contacto lista para usar.", badge: "Ventas", url: "https://lead-generation-engine-jaimearnaiz249.replit.app/", key: "lead", delay: 100 },
     { icon: "🤖", title: "Secure Doc AI", desc: "Agente de soporte que domina toda tu documentación. Respuestas precisas al instante, en cualquier idioma, disponible 24/7.", badge: "Soporte", url: "https://secure-doc-ai.replit.app/", key: "doc", delay: 200 },
     { icon: "📋", title: "Offer Configurator", desc: "Genera propuestas técnicas y económicas completas de forma automática. Profesionales, sin errores y listas para enviar.", badge: "Comercial", url: "https://offer-configurator.replit.app/", key: "offer", delay: 300 },
@@ -140,7 +307,7 @@ export default function Home() {
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden selection:bg-primary/30">
 
       {/* NAVBAR */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? "backdrop-blur-md bg-[#0A0A0F]/80 border-b border-[#1e1e2e]" : "bg-transparent"}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${isScrolled ? "backdrop-blur-md bg-[#0A0A0F]/80 border-b border-[#1e1e2e]" : "bg-transparent"}`}>
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center">
             <AlbariaLogo className="h-11" />
@@ -199,7 +366,7 @@ export default function Home() {
           <FadeSection>
             <p className="text-[13px] uppercase tracking-[2px] text-primary font-bold mb-4">Herramientas disponibles ahora</p>
             <h2 className="text-3xl md:text-[36px] font-semibold mb-4 tracking-tight">Pruébalas antes de decidir</h2>
-            <p className="text-lg text-muted-foreground mb-14 max-w-xl">Cada demo es funcional. Tienes <span className="text-white font-medium">2 minutos de acceso gratuito</span> para ver cómo trabaja la IA con datos reales.</p>
+            <p className="text-lg text-muted-foreground mb-14 max-w-xl">Cada demo es funcional. Tienes <span className="text-white font-medium">2 minutos de acceso gratuito</span> para ver cómo trabaja la IA con datos reales — sin salir de esta página.</p>
           </FadeSection>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -212,11 +379,14 @@ export default function Home() {
                   <div className="flex items-center justify-between mt-auto pt-6 border-t border-[#1e1e2e]/50">
                     <span className="text-xs font-medium px-2.5 py-1 bg-white/5 rounded-md text-muted-foreground border border-[#1e1e2e]">{tool.badge}</span>
                     <button
-                      onClick={() => handleDemoClick(tool.url, tool.key)}
-                      className="text-primary font-medium text-sm flex items-center gap-1 hover:brightness-125 transition-all cursor-pointer"
+                      onClick={() => openDemo({ url: tool.url, title: tool.title, key: tool.key })}
+                      className="text-primary font-medium text-sm flex items-center gap-1.5 hover:brightness-125 transition-all cursor-pointer"
                       data-testid={`button-demo-${tool.key}`}
                     >
-                      Probar demo <ExternalLink size={13} />
+                      {demoSessionStart && timeLeft > 0 ? (
+                        <span className="text-orange-400 font-mono text-xs">{formatTime(timeLeft)}</span>
+                      ) : null}
+                      Probar demo <ArrowRight size={14} />
                     </button>
                   </div>
                 </div>
@@ -340,47 +510,16 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* FLOATING DEMO TIMER */}
-      {demoSessionStart !== null && timeLeft > 0 && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#111118] border border-primary/40 rounded-xl px-5 py-3.5 shadow-2xl shadow-primary/10">
-          <div className="relative flex items-center justify-center w-9 h-9">
-            <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36" width="36" height="36">
-              <circle cx="18" cy="18" r="15" fill="none" stroke="#1e1e2e" strokeWidth="2.5" />
-              <circle cx="18" cy="18" r="15" fill="none" stroke="#6366F1" strokeWidth="2.5"
-                strokeDasharray={`${2 * Math.PI * 15}`}
-                strokeDashoffset={`${2 * Math.PI * 15 * (1 - timeLeft / DEMO_DURATION)}`}
-                strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.5s linear" }} />
-            </svg>
-            <Clock size={14} className="text-primary" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground leading-none mb-1">Acceso de prueba</p>
-            <p className="text-lg font-mono font-semibold text-white leading-none">{formatTime(timeLeft)}</p>
-          </div>
-          <a href="#reservar" className="ml-2 text-xs font-medium text-primary hover:brightness-125 transition-all whitespace-nowrap">
-            Obtener acceso →
-          </a>
-        </div>
-      )}
-
-      {/* TRIAL EXPIRED MODAL */}
-      {showExpiredModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm" onClick={() => setShowExpiredModal(false)}>
-          <div className="bg-[#111118] border border-[#1e1e2e] rounded-2xl p-10 max-w-md w-full text-center shadow-2xl" onClick={e => e.stopPropagation()}>
-            <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center mx-auto mb-6">
-              <Clock size={24} className="text-primary" />
-            </div>
-            <h3 className="text-2xl font-semibold mb-3">Tu prueba gratuita ha terminado</h3>
-            <p className="text-muted-foreground mb-8">Has visto cómo trabaja la IA de Albaria. Si quieres acceso completo y configurado para tu empresa, reserva 20 minutos con Jaime.</p>
-            <a href="#reservar" onClick={() => setShowExpiredModal(false)}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white rounded-[6px] font-medium transition-all hover:brightness-110 mb-3">
-              Reservar reunión gratuita <ArrowRight size={16} />
-            </a>
-            <button onClick={() => setShowExpiredModal(false)} className="text-sm text-muted-foreground hover:text-white transition-colors">
-              Volver a la web
-            </button>
-          </div>
-        </div>
+      {/* DEMO MODAL */}
+      {activeDemo && (
+        <DemoModal
+          demo={activeDemo}
+          timeLeft={timeLeft}
+          totalDuration={DEMO_DURATION}
+          onClose={closeDemo}
+          onExpired={handleDemoExpired}
+          onContactClick={handleContactFromDemo}
+        />
       )}
     </div>
   );

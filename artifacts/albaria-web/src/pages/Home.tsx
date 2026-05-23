@@ -443,37 +443,53 @@ export default function Home() {
           <FadeSection>
             <p className="text-xs uppercase tracking-[3px] text-primary font-semibold mb-5">Caso de éxito</p>
           </FadeSection>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
             <FadeSection delay={80}>
               <div className="space-y-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-white/5 border border-[#1e1e2e]">
+                  <span className="text-xs font-semibold text-white tracking-wide">Kento Digital Printing</span>
+                  <span className="text-xs text-muted-foreground">· Impresión digital industrial</span>
+                </div>
                 <h2 className="text-3xl md:text-[40px] font-semibold tracking-tight leading-tight">
                   Cómo Kento recuperó<br />horas de trabajo al día
                 </h2>
                 <p className="text-lg text-muted-foreground leading-relaxed">
-                  Kento es una empresa industrial que implantó los tres agentes de Albaria en sus operaciones diarias. El resultado fue inmediato: menos tiempo perdido buscando información, menos coste de personal en tareas repetitivas y una operativa comercial más ágil de principio a fin.
+                  Kento Digital Printing produce logos, vinilos, señalética y materiales de impresión de gran formato para clientes de todo tipo. Con un volumen alto de presupuestos, consultas técnicas y búsqueda continua de nuevos clientes, los tres agentes de Albaria transformaron la forma en que trabaja su equipo.
+                </p>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  El resultado fue inmediato: menos horas perdidas buscando información, reducción directa en costes de personal y una operativa comercial más rápida de principio a fin.
                 </p>
               </div>
             </FadeSection>
             <FadeSection delay={160}>
               <div className="space-y-4">
                 {[
-                  { label: "Lead Generator Engine", result: "Prospección automatizada. El equipo comercial dedica su tiempo a cerrar, no a buscar." },
-                  { label: "Secure Doc AI", result: "Cualquier consulta sobre documentación técnica resuelta en segundos, sin depender de nadie." },
-                  { label: "Offer Configurator", result: "Propuestas generadas en minutos. Antes llevaban horas y a menudo tenían errores." },
+                  {
+                    label: "Lead Generator Engine",
+                    result: "Identifica clientes potenciales en el sector de forma autónoma. El equipo comercial dedica su tiempo a cerrar, no a buscar.",
+                  },
+                  {
+                    label: "Secure Doc AI",
+                    result: "Responde al instante consultas sobre materiales, acabados y especificaciones técnicas. Sin esperas, sin depender de nadie.",
+                  },
+                  {
+                    label: "Offer Configurator",
+                    result: "Genera presupuestos detallados en minutos. Lo que antes llevaba horas y podía tener errores, ahora sale en un clic.",
+                  },
                 ].map((item, i) => (
                   <div key={i} className="flex gap-4 p-5 bg-[#0A0A0F] border border-[#1e1e2e] rounded-xl hover:border-primary/30 transition-colors">
-                    <div className="shrink-0 mt-0.5 w-2 h-2 rounded-full bg-primary mt-2" />
+                    <div className="shrink-0 w-2 h-2 rounded-full bg-primary mt-2" />
                     <div>
-                      <p className="text-sm font-semibold text-white mb-1">{item.label}</p>
+                      <p className="text-sm font-semibold text-white mb-1.5">{item.label}</p>
                       <p className="text-sm text-muted-foreground leading-relaxed">{item.result}</p>
                     </div>
                   </div>
                 ))}
-                <div className="pt-4 border-t border-[#1e1e2e] mt-6">
-                  <p className="text-sm text-muted-foreground italic leading-relaxed">
-                    "Probamos los tres agentes desde el principio. El ahorro en tiempo y en costes de personal fue visible desde la primera semana."
+                <div className="pt-5 border-t border-[#1e1e2e]">
+                  <p className="text-[15px] text-muted-foreground italic leading-relaxed">
+                    "Probamos los tres agentes desde el primer día. El ahorro en tiempo y en costes de personal fue visible desde la primera semana."
                   </p>
-                  <p className="text-sm font-medium text-white mt-3">— Equipo Kento</p>
+                  <p className="text-sm font-semibold text-white mt-3">Equipo Kento Digital Printing</p>
                 </div>
               </div>
             </FadeSection>

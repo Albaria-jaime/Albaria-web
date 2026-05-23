@@ -1,4 +1,8 @@
 {
   "visits": 7,
-  "demoClicks": {}
+  "demoClicks": {
+    "lead": 2,
+    "doc": 1,
+    "offer": 1
+  }
 }

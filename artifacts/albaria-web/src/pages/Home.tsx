@@ -6,8 +6,7 @@ import {
 import { Link } from "wouter";
 import albariLogoPath from "../assets/albaria-logo-clean.png";
 
-const DEMO_DURATION = 2 * 60 * 1000;
-const STORAGE_KEY = "albaria_demo_session";
+const DEMO_DURATION = 3 * 60 * 1000;
 
 function useFadeIn() {
   const ref = useRef<HTMLDivElement>(null);
@@ -44,8 +43,8 @@ function formatTime(ms: number) {
 
 interface DemoSession { url: string; title: string; key: string; }
 
-function DemoModal({ demo, timeLeft, totalDuration, onClose, onExpired, onContactClick }: {
-  demo: DemoSession; timeLeft: number; totalDuration: number;
+function DemoModal({ demo, timeLeft, totalDuration, token, onClose, onExpired, onContactClick }: {
+  demo: DemoSession; timeLeft: number; totalDuration: number; token: string;
   onClose: () => void; onExpired: () => void; onContactClick: () => void;
 }) {
   const [iframeLoaded, setIframeLoaded] = useState(false);
@@ -79,6 +78,9 @@ function DemoModal({ demo, timeLeft, totalDuration, onClose, onExpired, onContac
           <AlbariaLogo className="h-7" />
           <span className="text-muted-foreground text-sm hidden sm:block">·</span>
           <span className="text-sm font-medium text-foreground hidden sm:block">{demo.title}</span>
+          <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 border border-[#2a2a3a] text-[11px] font-mono text-muted-foreground">
+            #{token}
+          </span>
         </div>
         <div className="flex items-center gap-4">
           <div className={`flex items-center gap-2.5 px-3 py-1.5 rounded-lg border transition-colors ${
@@ -97,7 +99,7 @@ function DemoModal({ demo, timeLeft, totalDuration, onClose, onExpired, onContac
               />
             </svg>
             <div>
-              <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Acceso gratuito</p>
+              <p className="text-[10px] text-muted-foreground leading-none mb-0.5">Acceso de prueba</p>
               <p className={`text-sm font-mono font-bold leading-none ${
                 expired ? "text-red-400" : urgent ? "text-orange-400" : "text-white"
               }`}>{expired ? "0:00" : formatTime(timeLeft)}</p>
@@ -172,15 +174,23 @@ export default function Home() {
   const [activeDemo, setActiveDemo] = useState<DemoSession | null>(null);
   const [demoSessionStart, setDemoSessionStart] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [demoToken, setDemoToken] = useState<string>("");
+  const [creatingSession, setCreatingSession] = useState(false);
+  const [demoBlocked, setDemoBlocked] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const start = parseInt(stored, 10);
-      const elapsed = Date.now() - start;
-      if (elapsed < DEMO_DURATION) { setDemoSessionStart(start); setTimeLeft(DEMO_DURATION - elapsed); }
-      else localStorage.removeItem(STORAGE_KEY);
-    }
+    fetch("/api/demo/check")
+      .then(r => r.json())
+      .then((data: { status: string; token?: string; startedAt?: number; timeLeft?: number }) => {
+        if (data.status === "active" && data.token && data.startedAt && data.timeLeft) {
+          setDemoToken(data.token);
+          setDemoSessionStart(data.startedAt);
+          setTimeLeft(data.timeLeft);
+        } else if (data.status === "expired") {
+          setDemoBlocked(true);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -201,25 +211,56 @@ export default function Home() {
 
   useEffect(() => { fetch("/api/analytics/visit", { method: "POST" }).catch(() => {}); }, []);
 
-  const openDemo = useCallback((demo: DemoSession) => {
+  const openDemo = useCallback(async (demo: DemoSession) => {
     fetch("/api/analytics/demo-click", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ demo: demo.key }),
     }).catch(() => {});
-    if (!demoSessionStart) {
+
+    if (demoSessionStart && timeLeft > 0) {
+      setActiveDemo(demo);
+      return;
+    }
+
+    setCreatingSession(true);
+
+    try {
+      const res = await fetch("/api/demo/start", { method: "POST" });
+      const data = await res.json() as {
+        ok: boolean; blocked?: boolean; token?: string;
+        startedAt?: number; expiresAt?: number; resumed?: boolean;
+      };
+
+      if (!data.ok && data.blocked) {
+        setCreatingSession(false);
+        setDemoBlocked(true);
+        return;
+      }
+
+      if (data.ok && data.token && data.startedAt) {
+        setDemoToken(data.token);
+        setDemoSessionStart(data.startedAt);
+        setTimeLeft(data.expiresAt ? data.expiresAt - Date.now() : DEMO_DURATION);
+      }
+    } catch {
       const now = Date.now();
-      localStorage.setItem(STORAGE_KEY, String(now));
+      const token = Math.random().toString(36).slice(2, 6).toUpperCase();
+      setDemoToken(token);
       setDemoSessionStart(now);
       setTimeLeft(DEMO_DURATION);
     }
+
+    await new Promise(resolve => setTimeout(resolve, 1600));
+    setCreatingSession(false);
     setActiveDemo(demo);
-  }, [demoSessionStart]);
+  }, [demoSessionStart, timeLeft]);
 
   const closeDemo = useCallback(() => setActiveDemo(null), []);
 
   const handleDemoExpired = useCallback(() => {
     setDemoSessionStart(null);
-    localStorage.removeItem(STORAGE_KEY);
+    setTimeLeft(0);
+    setDemoBlocked(true);
   }, []);
 
   const handleContactFromDemo = useCallback(() => {
@@ -300,27 +341,21 @@ export default function Home() {
       <section className="pt-28 pb-24 md:pt-40 md:pb-32 px-6 relative">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,rgba(99,102,241,0.12),transparent)] pointer-events-none" />
         <div className="max-w-5xl mx-auto text-center relative z-10">
-
-          {/* Large hero logo */}
           <FadeSection>
             <div className="flex justify-center mb-16">
               <AlbariaLogo className="h-20 md:h-28" />
             </div>
           </FadeSection>
-
           <FadeSection delay={100}>
             <h1 className="text-5xl md:text-[64px] font-semibold leading-[1.1] tracking-tight mb-7 text-white">
-              Inteligencia artificial<br />
-              que trabaja por ti
+              Inteligencia artificial<br />que trabaja por ti
             </h1>
           </FadeSection>
-
           <FadeSection delay={180}>
             <p className="text-lg md:text-xl text-muted-foreground max-w-[540px] mx-auto mb-12 leading-relaxed">
               Automatiza los procesos que frenan a tu empresa. Más velocidad, menos fricción, resultados desde el primer día.
             </p>
           </FadeSection>
-
           <FadeSection delay={260}>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <a href="#herramientas"
@@ -335,11 +370,9 @@ export default function Home() {
               </a>
             </div>
           </FadeSection>
-
         </div>
       </section>
 
-      {/* DIVIDER LINE */}
       <div className="border-t border-[#1e1e2e]" />
 
       {/* TOOLS */}
@@ -350,7 +383,7 @@ export default function Home() {
               <p className="text-xs uppercase tracking-[3px] text-primary font-semibold mb-5">Herramientas disponibles</p>
               <h2 className="text-3xl md:text-[40px] font-semibold tracking-tight mb-5">Pruébalas antes de decidir</h2>
               <p className="text-lg text-muted-foreground max-w-lg leading-relaxed">
-                Cada aplicación es funcional y está en producción. Dispones de <span className="text-foreground font-medium">2 minutos de acceso gratuito</span> para verla trabajar con datos reales.
+                Cada aplicación es funcional y está en producción. Se genera una <span className="text-foreground font-medium">cuenta de prueba de 3 minutos</span> — de un solo uso, sin registro.
               </p>
             </div>
           </FadeSection>
@@ -368,7 +401,7 @@ export default function Home() {
                   <h3 className="text-[18px] font-semibold mb-3 text-white leading-snug">{tool.title}</h3>
                   <p className="text-[15px] text-muted-foreground leading-relaxed flex-grow">{tool.desc}</p>
                   <button
-                    onClick={() => openDemo({ url: tool.url, title: tool.title, key: tool.key })}
+                    onClick={() => { void openDemo({ url: tool.url, title: tool.title, key: tool.key }); }}
                     className="mt-8 self-start flex items-center gap-2 text-sm font-medium text-primary hover:gap-3 transition-all duration-200 group-hover:brightness-125"
                     data-testid={`button-demo-${tool.key}`}
                   >
@@ -454,7 +487,7 @@ export default function Home() {
                   Cómo Kento recuperó<br />horas de trabajo al día
                 </h2>
                 <p className="text-lg text-muted-foreground leading-relaxed">
-                  Kento Digital Printing produce logos, vinilos, señalética y materiales de impresión de gran formato para clientes de todo tipo. Con un volumen alto de presupuestos, consultas técnicas y búsqueda continua de nuevos clientes, los tres agentes de Albaria transformaron la forma en que trabaja su equipo.
+                  Kento Digital Printing produce vinilos, señalética y materiales de impresión de gran formato para clientes de todo tipo. Con un volumen alto de presupuestos, consultas técnicas y búsqueda continua de nuevos clientes, los tres agentes de Albaria transformaron la forma en que trabaja su equipo.
                 </p>
                 <p className="text-lg text-muted-foreground leading-relaxed">
                   El resultado fue inmediato: menos horas perdidas buscando información, reducción directa en costes de personal y una operativa comercial más rápida de principio a fin.
@@ -464,18 +497,9 @@ export default function Home() {
             <FadeSection delay={160}>
               <div className="space-y-4">
                 {[
-                  {
-                    label: "Lead Generator Engine",
-                    result: "Identifica clientes potenciales en el sector de forma autónoma. El equipo comercial dedica su tiempo a cerrar, no a buscar.",
-                  },
-                  {
-                    label: "Secure Doc AI",
-                    result: "Responde al instante consultas sobre materiales, acabados y especificaciones técnicas. Sin esperas, sin depender de nadie.",
-                  },
-                  {
-                    label: "Offer Configurator",
-                    result: "Genera presupuestos detallados en minutos. Lo que antes llevaba horas y podía tener errores, ahora sale en un clic.",
-                  },
+                  { label: "Lead Generator Engine", result: "Identifica clientes potenciales en el sector de forma autónoma. El equipo comercial dedica su tiempo a cerrar, no a buscar." },
+                  { label: "Secure Doc AI", result: "Responde al instante consultas sobre materiales, acabados y especificaciones técnicas. Sin esperas, sin depender de nadie." },
+                  { label: "Offer Configurator", result: "Genera presupuestos detallados en minutos. Lo que antes llevaba horas y podía tener errores, ahora sale en un clic." },
                 ].map((item, i) => (
                   <div key={i} className="flex gap-4 p-5 bg-[#0A0A0F] border border-[#1e1e2e] rounded-xl hover:border-primary/30 transition-colors">
                     <div className="shrink-0 w-2 h-2 rounded-full bg-primary mt-2" />
@@ -500,7 +524,6 @@ export default function Home() {
       {/* CONTACT */}
       <section id="reservar" className="py-32 px-6 border-t border-[#1e1e2e] bg-[#0d0d14]">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-
           <FadeSection>
             <p className="text-xs uppercase tracking-[3px] text-primary font-semibold mb-5">Contacto</p>
             <h2 className="text-4xl md:text-[48px] font-semibold tracking-tight mb-6 leading-tight">
@@ -524,7 +547,6 @@ export default function Home() {
               </div>
             </div>
           </FadeSection>
-
           <FadeSection delay={120}>
             {formSent ? (
               <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
@@ -568,7 +590,6 @@ export default function Home() {
               </form>
             )}
           </FadeSection>
-
         </div>
       </section>
 
@@ -581,12 +602,51 @@ export default function Home() {
         </div>
       </footer>
 
+      {/* CREATING SESSION OVERLAY */}
+      {creatingSession && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A0A0F]">
+          <div className="text-center px-6">
+            <div className="relative w-16 h-16 mx-auto mb-8">
+              <div className="w-16 h-16 border-2 border-primary/20 border-t-primary rounded-full animate-spin absolute inset-0" />
+              <div className="w-16 h-16 border-2 border-primary/10 border-b-primary/40 rounded-full animate-spin absolute inset-0" style={{ animationDirection: "reverse", animationDuration: "1.5s" }} />
+            </div>
+            <AlbariaLogo className="h-8 mx-auto mb-6 opacity-60" />
+            <h3 className="text-lg font-semibold text-white mb-2">Generando tu cuenta de prueba</h3>
+            <p className="text-sm text-muted-foreground">Tu sesión tendrá una duración de 3 minutos</p>
+          </div>
+        </div>
+      )}
+
+      {/* BLOCKED OVERLAY */}
+      {demoBlocked && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0A0A0F]/95 backdrop-blur-sm">
+          <div className="bg-[#111118] border border-[#1e1e2e] rounded-2xl p-10 max-w-md w-full text-center mx-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-6">
+              <Lock size={22} className="text-red-400" />
+            </div>
+            <h3 className="text-2xl font-semibold mb-3">Acceso de prueba caducado</h3>
+            <p className="text-muted-foreground mb-8 leading-relaxed">
+              Tu sesión de demostración ya ha sido utilizada. Para ver las herramientas con acceso completo, reserva una reunión gratuita con Jaime.
+            </p>
+            <button
+              onClick={() => { setDemoBlocked(false); setTimeout(() => document.getElementById("reservar")?.scrollIntoView({ behavior: "smooth" }), 50); }}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all mb-3">
+              Reservar reunión gratuita <ArrowRight size={16} />
+            </button>
+            <button onClick={() => setDemoBlocked(false)} className="text-sm text-muted-foreground hover:text-white transition-colors">
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* DEMO MODAL */}
       {activeDemo && (
         <DemoModal
           demo={activeDemo}
           timeLeft={timeLeft}
           totalDuration={DEMO_DURATION}
+          token={demoToken}
           onClose={closeDemo}
           onExpired={handleDemoExpired}
           onContactClick={handleContactFromDemo}

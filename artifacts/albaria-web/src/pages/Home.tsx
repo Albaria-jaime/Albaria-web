@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from "react";
-import { Menu, X, ArrowRight, Check, Zap, Target, Lock, TrendingUp } from "lucide-react";
+import React, { useEffect, useState, useRef, FormEvent } from "react";
+import { Menu, X, ArrowRight, Check, Zap, Target, Lock, TrendingUp, CheckCircle } from "lucide-react";
 import { Link } from "wouter";
 
 function useFadeIn() {
@@ -55,6 +55,18 @@ function FadeSection({ children, className = "", delay = 0 }: { children: React.
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [formData, setFormData] = useState({ nombre: "", empresa: "", mensaje: "" });
+  const [formSent, setFormSent] = useState(false);
+
+  function handleFormSubmit(e: FormEvent) {
+    e.preventDefault();
+    const subject = encodeURIComponent(`Consulta de ${formData.nombre} — ${formData.empresa}`);
+    const body = encodeURIComponent(
+      `Hola Jaime,\n\nMe llamo ${formData.nombre} y trabajo en ${formData.empresa}.\n\n${formData.mensaje}\n\nQuedo a tu disposición para concretar una reunión.\n\nSaludos,\n${formData.nombre}`
+    );
+    window.location.href = `mailto:jaime@albariasolutions.com?subject=${subject}&body=${body}`;
+    setFormSent(true);
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -364,20 +376,96 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="py-32 px-6 border-t border-[#1e1e2e] bg-gradient-to-b from-[#0A0A0F] to-[#0f0f1a]">
-        <FadeSection className="max-w-3xl mx-auto text-center">
+      {/* FINAL CTA + CONTACT FORM */}
+      <section id="reservar" className="py-32 px-6 border-t border-[#1e1e2e] bg-gradient-to-b from-[#0A0A0F] to-[#0f0f1a]">
+        <FadeSection className="max-w-2xl mx-auto text-center mb-12">
           <h2 className="text-4xl md:text-[42px] font-semibold mb-6 tracking-tight">¿Tu empresa necesita esto?</h2>
-          <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground max-w-xl mx-auto">
             Reserva 20 minutos. Sin compromiso. Si no veo cómo ayudarte, te lo digo en la primera reunión.
           </p>
-          <a 
-            href="mailto:jaime@albariasolutions.com" 
-            className="inline-flex items-center justify-center px-8 py-4 bg-primary text-white rounded-[6px] font-medium text-[16px] transition-all hover:brightness-110 shadow-lg shadow-primary/20 mb-6"
-          >
-            Reservar reunión gratuita <ArrowRight className="ml-2" size={18} />
-          </a>
-          <div>
+        </FadeSection>
+
+        <FadeSection delay={150} className="max-w-lg mx-auto">
+          {formSent ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+              <CheckCircle size={48} className="text-[#10B981]" />
+              <h3 className="text-2xl font-semibold">¡Mensaje enviado!</h3>
+              <p className="text-muted-foreground">
+                Tu cliente de correo se ha abierto con el mensaje listo. Jaime te responderá en menos de 24h.
+              </p>
+              <button
+                onClick={() => { setFormSent(false); setFormData({ nombre: "", empresa: "", mensaje: "" }); }}
+                className="text-sm text-primary hover:brightness-125 transition-all mt-2"
+              >
+                Enviar otro mensaje
+              </button>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleFormSubmit}
+              data-testid="form-contacto"
+              className="bg-[#111118] border border-[#1e1e2e] rounded-xl p-8 flex flex-col gap-5"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="nombre" className="text-sm font-medium text-muted-foreground">
+                    Tu nombre
+                  </label>
+                  <input
+                    id="nombre"
+                    data-testid="input-nombre"
+                    type="text"
+                    required
+                    placeholder="Nombre Apellido"
+                    value={formData.nombre}
+                    onChange={e => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+                    className="bg-[#0A0A0F] border border-[#1e1e2e] rounded-[6px] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/60 transition-colors"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="empresa" className="text-sm font-medium text-muted-foreground">
+                    Tu empresa
+                  </label>
+                  <input
+                    id="empresa"
+                    data-testid="input-empresa"
+                    type="text"
+                    required
+                    placeholder="Empresa S.L."
+                    value={formData.empresa}
+                    onChange={e => setFormData(prev => ({ ...prev, empresa: e.target.value }))}
+                    className="bg-[#0A0A0F] border border-[#1e1e2e] rounded-[6px] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/60 transition-colors"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="mensaje" className="text-sm font-medium text-muted-foreground">
+                  ¿Qué necesitas automatizar? <span className="text-muted-foreground/50 font-normal">(opcional)</span>
+                </label>
+                <textarea
+                  id="mensaje"
+                  data-testid="textarea-mensaje"
+                  rows={4}
+                  placeholder="Cuéntame brevemente tu proceso o el problema que quieres resolver..."
+                  value={formData.mensaje}
+                  onChange={e => setFormData(prev => ({ ...prev, mensaje: e.target.value }))}
+                  className="bg-[#0A0A0F] border border-[#1e1e2e] rounded-[6px] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/60 transition-colors resize-none"
+                />
+              </div>
+              <button
+                type="submit"
+                data-testid="button-submit-contacto"
+                className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-primary text-white rounded-[6px] font-medium text-[16px] transition-all hover:brightness-110 shadow-lg shadow-primary/20 mt-2"
+              >
+                Reservar reunión gratuita <ArrowRight size={18} />
+              </button>
+              <p className="text-center text-xs text-muted-foreground/60">
+                Al enviar se abrirá tu cliente de correo con el mensaje listo para Jaime.
+              </p>
+            </form>
+          )}
+
+          <div className="text-center mt-8">
             <a href="mailto:jaime@albariasolutions.com" className="text-sm text-muted-foreground hover:text-white transition-colors">
               jaime@albariasolutions.com
             </a>

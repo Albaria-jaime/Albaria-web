@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, FormEvent } from "react";
-import { Menu, X, ArrowRight, Check, Zap, Target, Lock, TrendingUp, CheckCircle } from "lucide-react";
+import { Menu, X, ArrowRight, Check, Zap, Target, Lock, TrendingUp, CheckCircle, Eye } from "lucide-react";
 import { Link } from "wouter";
+import albariLogoPath from "../assets/albaria-logo-orig.png";
 
 function useFadeIn() {
   const ref = useRef<HTMLDivElement>(null);
@@ -14,49 +15,64 @@ function useFadeIn() {
           observer.unobserve(entry.target);
         }
       },
-      {
-        threshold: 0.1,
-        rootMargin: "50px",
-      }
+      { threshold: 0.1, rootMargin: "50px" }
     );
-
-    if (ref.current) {
-      observer.observe(ref.current);
-    }
-
-    return () => {
-      if (ref.current) {
-        observer.unobserve(ref.current);
-      }
-    };
+    if (ref.current) observer.observe(ref.current);
+    return () => { if (ref.current) observer.unobserve(ref.current); };
   }, []);
 
   return { ref, isVisible };
 }
 
-function FadeSection({ children, className = "", delay = 0 }: { children: React.ReactNode, className?: string, delay?: number }) {
+function FadeSection({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const { ref, isVisible } = useFadeIn();
-  
   return (
     <div
       ref={ref}
       className={`transition-all duration-700 ease-out ${className}`}
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(20px)",
-        transitionDelay: `${delay}ms`
-      }}
+      style={{ opacity: isVisible ? 1 : 0, transform: isVisible ? "translateY(0)" : "translateY(20px)", transitionDelay: `${delay}ms` }}
     >
       {children}
     </div>
   );
 }
 
+const AlbariaLogo = ({ className = "h-8" }: { className?: string }) => (
+  <img
+    src={albariLogoPath}
+    alt="Albaria Solutions"
+    className={`${className} w-auto object-contain`}
+    style={{ mixBlendMode: "screen" }}
+  />
+);
+
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [visits, setVisits] = useState<number | null>(null);
   const [formData, setFormData] = useState({ nombre: "", empresa: "", mensaje: "" });
   const [formSent, setFormSent] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/analytics/visit", { method: "POST" })
+      .then(r => r.json())
+      .then((data: { visits: number }) => setVisits(data.visits))
+      .catch(() => {});
+  }, []);
+
+  function trackDemoClick(demo: string) {
+    fetch("/api/analytics/demo-click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ demo }),
+    }).catch(() => {});
+  }
 
   function handleFormSubmit(e: FormEvent) {
     e.preventDefault();
@@ -68,72 +84,53 @@ export default function Home() {
     setFormSent(true);
   }
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
-  const LogoSVG = () => (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" className="shrink-0">
-      <circle cx="14" cy="14" r="3" fill="#6366F1"/>
-      <ellipse cx="14" cy="14" rx="12" ry="5" stroke="#6366F1" strokeWidth="1.5" fill="none"/>
-      <ellipse cx="14" cy="14" rx="12" ry="5" stroke="#6366F1" strokeWidth="1.5" fill="none" transform="rotate(60 14 14)"/>
-      <ellipse cx="14" cy="14" rx="12" ry="5" stroke="#6366F1" strokeWidth="1.5" fill="none" transform="rotate(120 14 14)"/>
-    </svg>
-  );
-
   return (
     <div className="min-h-screen bg-background text-foreground font-sans overflow-x-hidden selection:bg-primary/30">
+
       {/* NAVBAR */}
-      <nav 
+      <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-          isScrolled 
-            ? "backdrop-blur-md bg-[#0A0A0F]/80 border-b border-[#1e1e2e]" 
-            : "bg-transparent border-transparent"
+          isScrolled ? "backdrop-blur-md bg-[#0A0A0F]/80 border-b border-[#1e1e2e]" : "bg-transparent border-transparent"
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <LogoSVG />
-            <span className="font-bold text-[22px] tracking-tight">ALBARIA</span>
+          <Link href="/" className="flex items-center">
+            <AlbariaLogo className="h-9" />
           </Link>
 
-          {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
             <a href="#herramientas" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Herramientas</a>
             <a href="#demos" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Demos</a>
-            <a href="#contacto" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
-            <a 
-              href="mailto:jaime@albariasolutions.com" 
-              className="text-sm font-medium bg-transparent border border-[#1e1e2e] hover:border-primary px-4 py-2 rounded-md transition-all hover:brightness-110"
+            <a href="#reservar" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
+            <a
+              href="#reservar"
+              className="text-sm font-medium bg-primary text-white px-4 py-2 rounded-md transition-all hover:brightness-110"
+              data-testid="button-nav-contacto"
             >
-              Hablar con Jaime
+              Contáctanos
             </a>
           </div>
 
-          {/* Mobile Menu Toggle */}
-          <button 
+          <button
             className="md:hidden text-foreground p-2"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            data-testid="button-mobile-menu"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
-        {/* Mobile Nav */}
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-20 left-0 right-0 bg-[#0A0A0F] border-b border-[#1e1e2e] p-6 flex flex-col gap-6 shadow-2xl">
             <a href="#herramientas" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors">Herramientas</a>
             <a href="#demos" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors">Demos</a>
-            <a href="#contacto" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
-            <a 
-              href="mailto:jaime@albariasolutions.com" 
-              className="text-center text-lg font-medium border border-[#1e1e2e] hover:border-primary px-4 py-3 rounded-md transition-all"
+            <a href="#reservar" onClick={() => setIsMobileMenuOpen(false)} className="text-lg font-medium text-muted-foreground hover:text-foreground transition-colors">Contacto</a>
+            <a
+              href="#reservar"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-center text-lg font-medium bg-primary text-white px-4 py-3 rounded-md transition-all hover:brightness-110"
             >
-              Hablar con Jaime
+              Contáctanos
             </a>
           </div>
         )}
@@ -144,7 +141,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/10 via-background to-background pointer-events-none" />
         <FadeSection className="max-w-4xl mx-auto text-center relative z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-sm font-medium mb-8">
-            <span className="text-yellow-400">⚡</span> 
+            <span className="text-yellow-400">⚡</span>
             <span className="text-primary-foreground">Agentes de IA para empresas B2B</span>
           </div>
           <h1 className="text-4xl md:text-[56px] font-semibold leading-[1.15] tracking-tight mb-6">
@@ -155,22 +152,32 @@ export default function Home() {
             Agentes de inteligencia artificial para empresas industriales. Detecta clientes, genera ofertas y automatiza soporte técnico sin contratar ni un empleado más.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
-            <a 
-              href="#herramientas" 
+            <a
+              href="#herramientas"
               className="w-full sm:w-auto px-6 py-3.5 bg-primary text-white rounded-[6px] font-medium transition-all hover:brightness-110 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              data-testid="button-hero-demos"
             >
               Ver demos en vivo <ArrowRight size={18} />
             </a>
-            <a 
-              href="mailto:jaime@albariasolutions.com" 
+            <a
+              href="#reservar"
               className="w-full sm:w-auto px-6 py-3.5 bg-transparent border border-[#1e1e2e] text-muted-foreground rounded-[6px] font-medium transition-all hover:border-primary hover:text-white flex items-center justify-center"
+              data-testid="button-hero-contacto"
             >
-              Hablar con Jaime
+              Contáctanos
             </a>
           </div>
-          <p className="text-[13px] text-muted-foreground font-medium tracking-wide">
-            3 herramientas en producción · Empresas industriales B2B · Valencia, España
-          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8">
+            <p className="text-[13px] text-muted-foreground font-medium tracking-wide">
+              3 herramientas en producción · Empresas industriales B2B · Valencia, España
+            </p>
+            {visits !== null && visits > 1 && (
+              <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground/70">
+                <Eye size={13} className="text-primary/60" />
+                <span><span className="text-primary/80 font-medium">{visits}</span> visitas</span>
+              </div>
+            )}
+          </div>
         </FadeSection>
       </section>
 
@@ -180,76 +187,65 @@ export default function Home() {
           <FadeSection>
             <h2 className="text-[13px] uppercase tracking-[2px] text-primary font-bold mb-12">Herramientas disponibles ahora</h2>
           </FadeSection>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <FadeSection delay={100}>
-              <div className="group bg-card border border-[#1e1e2e] rounded-xl p-8 hover:border-primary/40 hover:-translate-y-1 transition-all duration-200 h-full flex flex-col">
-                <div className="w-10 h-10 rounded-full bg-[#1a1a2a] flex items-center justify-center mb-6 text-xl">
-                  🎯
+            {[
+              {
+                icon: "🎯",
+                title: "Lead Generator Engine",
+                desc: "Detecta empresas que encajan con tu perfil de cliente ideal — incluyendo las que ninguna herramienta estándar ve. Informes con fichas completas y estrategia de contacto.",
+                badge: "Ventas",
+                url: "https://lead-generation-engine-jaimearnaiz249.replit.app/",
+                key: "lead",
+                delay: 100,
+              },
+              {
+                icon: "🤖",
+                title: "Secure Doc AI",
+                desc: "Chatbot privado entrenado con tus manuales y documentación. Responde al instante en cualquier idioma, 24/7. Solo ve lo que tú le das — 100% privado y seguro.",
+                badge: "Soporte Técnico",
+                url: "https://secure-doc-ai.replit.app/",
+                key: "doc",
+                delay: 200,
+              },
+              {
+                icon: "📋",
+                title: "Offer Configurator",
+                desc: "Configura tu producto de forma modular y genera automáticamente la oferta técnica y económica completa en PDF. Sin errores, sin llamar a ingeniería.",
+                badge: "Comercial",
+                url: "https://offer-configurator.replit.app/",
+                key: "offer",
+                delay: 300,
+              },
+            ].map((tool) => (
+              <FadeSection key={tool.key} delay={tool.delay}>
+                <div
+                  className="group bg-card border border-[#1e1e2e] rounded-xl p-8 hover:border-primary/40 hover:-translate-y-1 transition-all duration-200 h-full flex flex-col"
+                  data-testid={`card-tool-${tool.key}`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-[#1a1a2a] flex items-center justify-center mb-6 text-xl">
+                    {tool.icon}
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">{tool.title}</h3>
+                  <p className="text-muted-foreground mb-6 flex-grow">{tool.desc}</p>
+                  <div className="flex items-center justify-between mt-auto pt-6 border-t border-[#1e1e2e]/50">
+                    <span className="text-xs font-medium px-2.5 py-1 bg-white/5 rounded-md text-muted-foreground border border-[#1e1e2e] border-primary/20">
+                      {tool.badge}
+                    </span>
+                    <a
+                      href={tool.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackDemoClick(tool.key)}
+                      className="text-primary font-medium text-sm flex items-center gap-1 hover:brightness-125 transition-all"
+                      data-testid={`link-demo-${tool.key}`}
+                    >
+                      Probar demo <ArrowRight size={14} />
+                    </a>
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">Lead Generator Engine</h3>
-                <p className="text-muted-foreground mb-6 flex-grow">
-                  Detecta empresas que encajan con tu perfil de cliente ideal — incluyendo las que ninguna herramienta estándar ve. Informes con fichas completas y estrategia de contacto.
-                </p>
-                <div className="flex items-center justify-between mt-auto pt-6 border-t border-[#1e1e2e]/50">
-                  <span className="text-xs font-medium px-2.5 py-1 bg-white/5 rounded-md text-muted-foreground">Ventas</span>
-                  <a 
-                    href="https://lead-generation-engine-jaimearnaiz249.replit.app/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary font-medium text-sm flex items-center gap-1 hover:brightness-125 transition-all"
-                  >
-                    Probar demo <ArrowRight size={14} />
-                  </a>
-                </div>
-              </div>
-            </FadeSection>
-
-            <FadeSection delay={200}>
-              <div className="group bg-card border border-[#1e1e2e] rounded-xl p-8 hover:border-primary/40 hover:-translate-y-1 transition-all duration-200 h-full flex flex-col">
-                <div className="w-10 h-10 rounded-full bg-[#1a1a2a] flex items-center justify-center mb-6 text-xl">
-                  🤖
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Secure Doc AI</h3>
-                <p className="text-muted-foreground mb-6 flex-grow">
-                  Chatbot privado entrenado con tus manuales y documentación. Responde al instante en cualquier idioma, 24/7. Solo ve lo que tú le das — 100% privado y seguro.
-                </p>
-                <div className="flex items-center justify-between mt-auto pt-6 border-t border-[#1e1e2e]/50">
-                  <span className="text-xs font-medium px-2.5 py-1 bg-white/5 rounded-md text-muted-foreground">Soporte Técnico</span>
-                  <a 
-                    href="https://secure-doc-ai.replit.app/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary font-medium text-sm flex items-center gap-1 hover:brightness-125 transition-all"
-                  >
-                    Probar demo <ArrowRight size={14} />
-                  </a>
-                </div>
-              </div>
-            </FadeSection>
-
-            <FadeSection delay={300}>
-              <div className="group bg-card border border-[#1e1e2e] rounded-xl p-8 hover:border-primary/40 hover:-translate-y-1 transition-all duration-200 h-full flex flex-col">
-                <div className="w-10 h-10 rounded-full bg-[#1a1a2a] flex items-center justify-center mb-6 text-xl">
-                  📋
-                </div>
-                <h3 className="text-xl font-semibold mb-3">Offer Configurator</h3>
-                <p className="text-muted-foreground mb-6 flex-grow">
-                  Configura tu producto de forma modular y genera automáticamente la oferta técnica y económica completa en PDF. Sin errores, sin llamar a ingeniería.
-                </p>
-                <div className="flex items-center justify-between mt-auto pt-6 border-t border-[#1e1e2e]/50">
-                  <span className="text-xs font-medium px-2.5 py-1 bg-white/5 rounded-md text-muted-foreground">Comercial</span>
-                  <a 
-                    href="https://offer-configurator.replit.app/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary font-medium text-sm flex items-center gap-1 hover:brightness-125 transition-all"
-                  >
-                    Probar demo <ArrowRight size={14} />
-                  </a>
-                </div>
-              </div>
-            </FadeSection>
+              </FadeSection>
+            ))}
           </div>
         </div>
       </section>
@@ -264,11 +260,10 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
             <div className="hidden md:block absolute top-8 left-[10%] right-[10%] h-[1px] bg-[#1e1e2e] z-0" />
-            
             {[
               { num: "01", title: "Briefing", desc: "Nos reunimos. Entendemos tu proceso y lo que necesitas. Sin PowerPoints de 40 slides." },
               { num: "02", title: "Configuración", desc: "Albaria construye y personaliza el agente para tu empresa. Tú revisas y ajustamos." },
-              { num: "03", title: "En producción", desc: "Tu equipo lo usa desde el primer día. Albaria lo mantiene y mejora cada mes." }
+              { num: "03", title: "En producción", desc: "Tu equipo lo usa desde el primer día. Albaria lo mantiene y mejora cada mes." },
             ].map((step, i) => (
               <FadeSection key={step.num} delay={i * 150} className="relative z-10 bg-[#0d0d14]">
                 <div className="text-5xl font-bold text-primary/30 mb-6 bg-[#0d0d14] inline-block pr-4">{step.num}</div>
@@ -321,62 +316,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* PRICING */}
-      <section id="contacto" className="py-24 px-6 border-t border-[#1e1e2e] bg-[#0d0d14]">
-        <div className="max-w-7xl mx-auto">
-          <FadeSection>
-            <h2 className="text-3xl md:text-[36px] font-semibold mb-16 text-center tracking-tight">Transparente desde el primer día</h2>
-          </FadeSection>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <FadeSection delay={100}>
-              <div className="bg-card border border-[#1e1e2e] rounded-xl p-8 h-full flex flex-col">
-                <h3 className="text-xl font-medium mb-2">Starter</h3>
-                <div className="mb-6"><span className="text-muted-foreground text-sm">desde</span> <span className="text-3xl font-bold">290€</span><span className="text-muted-foreground">/mes</span></div>
-                <div className="text-sm text-muted-foreground mb-8 pb-8 border-b border-[#1e1e2e]">Setup: 190€</div>
-                <ul className="space-y-4 mb-8 flex-grow">
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> 1 agente configurado</li>
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> Soporte por email</li>
-                </ul>
-                <a href="mailto:jaime@albariasolutions.com" className="w-full block text-center py-2.5 rounded-[6px] border border-[#1e1e2e] hover:border-primary transition-all font-medium text-sm mt-auto">Empezar →</a>
-              </div>
-            </FadeSection>
-
-            <FadeSection delay={200}>
-              <div className="bg-card border-2 border-primary rounded-xl p-8 h-full flex flex-col relative transform md:-translate-y-4 shadow-2xl shadow-primary/10">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-primary text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
-                  Más elegido
-                </div>
-                <h3 className="text-xl font-medium mb-2">Professional</h3>
-                <div className="mb-6"><span className="text-muted-foreground text-sm">desde</span> <span className="text-3xl font-bold">590€</span><span className="text-muted-foreground">/mes</span></div>
-                <div className="text-sm text-muted-foreground mb-8 pb-8 border-b border-[#1e1e2e]">Setup: 390€</div>
-                <ul className="space-y-4 mb-8 flex-grow">
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> Hasta 3 agentes</li>
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> Integraciones CRM/ERP</li>
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> Soporte prioritario</li>
-                </ul>
-                <a href="mailto:jaime@albariasolutions.com" className="w-full block text-center py-2.5 rounded-[6px] bg-primary text-white hover:brightness-110 transition-all font-medium text-sm mt-auto">Empezar →</a>
-              </div>
-            </FadeSection>
-
-            <FadeSection delay={300}>
-              <div className="bg-card border border-[#1e1e2e] rounded-xl p-8 h-full flex flex-col">
-                <h3 className="text-xl font-medium mb-2">Enterprise</h3>
-                <div className="mb-6"><span className="text-muted-foreground text-sm">desde</span> <span className="text-3xl font-bold">990€</span><span className="text-muted-foreground">/mes</span></div>
-                <div className="text-sm text-muted-foreground mb-8 pb-8 border-b border-[#1e1e2e]">Setup: desde 790€</div>
-                <ul className="space-y-4 mb-8 flex-grow">
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> Agentes ilimitados</li>
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> Onboarding completo</li>
-                  <li className="flex items-center gap-3 text-sm"><Check size={16} className="text-primary shrink-0" /> SLA garantizado</li>
-                </ul>
-                <a href="mailto:jaime@albariasolutions.com" className="w-full block text-center py-2.5 rounded-[6px] border border-[#1e1e2e] hover:border-primary transition-all font-medium text-sm mt-auto">Hablar con Jaime →</a>
-              </div>
-            </FadeSection>
-          </div>
-        </div>
-      </section>
-
-      {/* FINAL CTA + CONTACT FORM */}
+      {/* CONTACT FORM */}
       <section id="reservar" className="py-32 px-6 border-t border-[#1e1e2e] bg-gradient-to-b from-[#0A0A0F] to-[#0f0f1a]">
         <FadeSection className="max-w-2xl mx-auto text-center mb-12">
           <h2 className="text-4xl md:text-[42px] font-semibold mb-6 tracking-tight">¿Tu empresa necesita esto?</h2>
@@ -408,9 +348,7 @@ export default function Home() {
             >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="nombre" className="text-sm font-medium text-muted-foreground">
-                    Tu nombre
-                  </label>
+                  <label htmlFor="nombre" className="text-sm font-medium text-muted-foreground">Tu nombre</label>
                   <input
                     id="nombre"
                     data-testid="input-nombre"
@@ -423,9 +361,7 @@ export default function Home() {
                   />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="empresa" className="text-sm font-medium text-muted-foreground">
-                    Tu empresa
-                  </label>
+                  <label htmlFor="empresa" className="text-sm font-medium text-muted-foreground">Tu empresa</label>
                   <input
                     id="empresa"
                     data-testid="input-empresa"
@@ -476,18 +412,11 @@ export default function Home() {
       {/* FOOTER */}
       <footer className="py-8 px-6 border-t border-[#1e1e2e] bg-[#0A0A0F]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <LogoSVG />
-            <span className="font-bold text-sm tracking-tight">ALBARIA</span>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            © 2025 Albaria Solutions · Valencia, España
-          </div>
-          <div className="text-sm text-muted-foreground">
-            <a href="mailto:jaime@albariasolutions.com" className="hover:text-white transition-colors">
-              jaime@albariasolutions.com
-            </a>
-          </div>
+          <AlbariaLogo className="h-7" />
+          <div className="text-sm text-muted-foreground">© 2025 Albaria Solutions · Valencia, España</div>
+          <a href="mailto:jaime@albariasolutions.com" className="text-sm text-muted-foreground hover:text-white transition-colors">
+            jaime@albariasolutions.com
+          </a>
         </div>
       </footer>
     </div>

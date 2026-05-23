@@ -105,10 +105,6 @@ function DemoModal({ demo, timeLeft, totalDuration, token, onClose, onExpired, o
               }`}>{expired ? "0:00" : formatTime(timeLeft)}</p>
             </div>
           </div>
-          <a href={demo.url} target="_blank" rel="noopener noreferrer"
-            className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors">
-            <ExternalLink size={13} /> Abrir en pestaña
-          </a>
           <button onClick={onClose} data-testid="button-demo-close"
             className="w-8 h-8 rounded-md hover:bg-white/5 flex items-center justify-center text-muted-foreground hover:text-white transition-colors">
             <X size={18} />
@@ -128,13 +124,13 @@ function DemoModal({ demo, timeLeft, totalDuration, token, onClose, onExpired, o
               <AlertTriangle size={24} className="text-orange-400" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold mb-2">La demo no puede abrirse aquí</h3>
-              <p className="text-muted-foreground max-w-sm">Esta aplicación no permite mostrarse dentro de otra web. Ábrela en una nueva pestaña para probarla.</p>
+              <h3 className="text-xl font-semibold mb-2">La demo no está disponible en este momento</h3>
+              <p className="text-muted-foreground max-w-sm">Reserva una reunión y te la mostramos en directo con datos reales de tu sector.</p>
             </div>
-            <a href={demo.url} target="_blank" rel="noopener noreferrer"
+            <button onClick={onContactClick}
               className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-[6px] font-medium hover:brightness-110 transition-all">
-              Abrir la demo <ExternalLink size={16} />
-            </a>
+              Reservar reunión gratuita <ArrowRight size={16} />
+            </button>
           </div>
         )}
         {!iframeBlocked && (
@@ -366,7 +362,7 @@ export default function Home() {
               <a href="#reservar"
                 className="w-full sm:w-auto px-7 py-3.5 border border-[#2a2a3a] text-muted-foreground rounded-[6px] font-medium transition-all hover:border-primary/50 hover:text-white flex items-center justify-center"
                 data-testid="button-hero-contacto">
-                Hablar con Jaime
+                Contáctanos
               </a>
             </div>
           </FadeSection>
@@ -597,7 +593,7 @@ export default function Home() {
       <footer className="py-8 px-6 border-t border-[#1e1e2e] bg-[#0A0A0F]">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <AlbariaLogo className="h-7" />
-          <p className="text-sm text-muted-foreground">© 2025 Albaria Solutions</p>
+          <p className="text-sm text-muted-foreground">© 2025 Albaria</p>
           <a href="mailto:jaime@albariasolutions.com" className="text-sm text-muted-foreground hover:text-white transition-colors">jaime@albariasolutions.com</a>
         </div>
       </footer>

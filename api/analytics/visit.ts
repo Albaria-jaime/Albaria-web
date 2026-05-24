@@ -1,8 +1,13 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { IncomingMessage, ServerResponse } from "http";
 import { analyticsStore } from "../_store";
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+export default function handler(req: IncomingMessage, res: ServerResponse) {
+  res.setHeader("Content-Type", "application/json");
+  if (req.method !== "POST") {
+    res.statusCode = 405;
+    res.end(JSON.stringify({ error: "Method not allowed" }));
+    return;
+  }
   analyticsStore.visits += 1;
-  return res.json({ visits: analyticsStore.visits });
+  res.end(JSON.stringify({ visits: analyticsStore.visits }));
 }

@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm --filter @workspace/albaria-web run build",
-  "outputDirectory": "artifacts/albaria-web/dist",
+  "outputDirectory": "artifacts/albaria-web/dist/public",
   "installCommand": "pnpm install",
   "framework": "vite",
   "rewrites": [

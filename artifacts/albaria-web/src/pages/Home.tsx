@@ -228,6 +228,8 @@ export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [formData, setFormData] = useState({ nombre: "", empresa: "", mensaje: "" });
   const [formSent, setFormSent] = useState(false);
+  const [formSending, setFormSending] = useState(false);
+  const [formError, setFormError] = useState("");
   const [activeDemo, setActiveDemo] = useState<DemoSession | null>(null);
   const [demoSessionStart, setDemoSessionStart] = useState<number | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -325,12 +327,26 @@ export default function Home() {
     setTimeout(() => document.getElementById("reservar")?.scrollIntoView({ behavior: "smooth" }), 100);
   }, []);
 
-  function handleFormSubmit(e: FormEvent) {
+  async function handleFormSubmit(e: FormEvent) {
     e.preventDefault();
-    const subject = encodeURIComponent(`Consulta de ${formData.nombre} — ${formData.empresa}`);
-    const body = encodeURIComponent(`Hola Jaime,\n\nMe llamo ${formData.nombre} y trabajo en ${formData.empresa}.\n\n${formData.mensaje}\n\nQuedo a tu disposición para concretar una reunión.\n\nSaludos,\n${formData.nombre}`);
-    window.location.href = `mailto:jaime@albariasolutions.com?subject=${subject}&body=${body}`;
-    setFormSent(true);
+    setFormSending(true);
+    setFormError("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (res.ok) {
+        setFormSent(true);
+      } else {
+        setFormError("No se pudo enviar el mensaje. Escríbenos directamente a jaime@albariasolutions.com");
+      }
+    } catch {
+      setFormError("Error de conexión. Escríbenos a jaime@albariasolutions.com");
+    } finally {
+      setFormSending(false);
+    }
   }
 
   const tools = [
@@ -609,7 +625,7 @@ export default function Home() {
               <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
                 <CheckCircle size={48} className="text-[#10B981]" />
                 <h3 className="text-2xl font-semibold">Mensaje enviado</h3>
-                <p className="text-muted-foreground">Tu cliente de correo se ha abierto con el mensaje listo. Jaime responderá en menos de 24h.</p>
+                <p className="text-muted-foreground">Jaime responderá en menos de 24h.</p>
                 <button onClick={() => { setFormSent(false); setFormData({ nombre: "", empresa: "", mensaje: "" }); }}
                   className="text-sm text-primary hover:brightness-125 transition-all mt-2">
                   Enviar otro mensaje
@@ -640,9 +656,16 @@ export default function Home() {
                     value={formData.mensaje} onChange={e => setFormData(prev => ({ ...prev, mensaje: e.target.value }))}
                     className="bg-[#111118] border border-[#1e1e2e] rounded-[6px] px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/50 transition-colors resize-none" />
                 </div>
-                <button type="submit" data-testid="button-submit-contacto"
-                  className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-white rounded-[6px] font-medium text-[15px] transition-all hover:brightness-110 shadow-lg shadow-primary/20">
-                  Enviar mensaje <ArrowRight size={17} />
+                {formError && (
+                  <p className="text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">{formError}</p>
+                )}
+                <button type="submit" disabled={formSending} data-testid="button-submit-contacto"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-primary text-white rounded-[6px] font-medium text-[15px] transition-all hover:brightness-110 shadow-lg shadow-primary/20 disabled:opacity-60 disabled:cursor-not-allowed">
+                  {formSending ? (
+                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Enviando…</>
+                  ) : (
+                    <>Enviar mensaje <ArrowRight size={17} /></>
+                  )}
                 </button>
               </form>
             )}
